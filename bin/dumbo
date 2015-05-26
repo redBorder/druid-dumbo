@@ -26,6 +26,12 @@ CLI.for(Dumbo::CLI) do
     :long => '--topics LIST',
     :description => 'Topics to process (comma seperated), defaults to all in sources.json',
     :proc => Proc.new { |x| x.split(',') }
+    
+  option :namespaces,
+    :short => '-a LIST',
+    :long => '--namespaces LIST',
+    :description => 'Namespaces to process (comma seperated)',
+    :proc => Proc.new { |x| x.split(',') }
 
   option :namenodes,
     :short => '-n LIST',

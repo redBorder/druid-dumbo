@@ -3,10 +3,13 @@ require 'dumbo/task/base'
 module Dumbo
   module Task
     class IndexHadoop < Base
-      def initialize(source, interval, paths)
+      def initialize(source, namespace, interval, paths)
         @source = source
+        @namespace = namespace
         @interval = interval
         @paths = paths
+        @datasource = @source['dataSource']
+        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_id'
       end
 
       def as_json(options = {})
@@ -14,7 +17,7 @@ module Dumbo
           type: 'index_hadoop',
           spec: {
             dataSchema: {
-              dataSource: @source['dataSource'],
+              dataSource: @datasource,
               parser: {
                 parseSpec: {
                   format: "json",
@@ -41,7 +44,7 @@ module Dumbo
               type: 'hadoop',
               inputSpec: {
                 type: 'static',
-                paths: @paths.join(','),
+                paths: @paths.map { |path| "hdfs://#{@namenodes.first}:8020#{path}" }.join(','),
               },
             },
             tuningConfig: {

@@ -25,33 +25,46 @@ module Dumbo
       @limit = opts[:limit]
     end
 
+    def namespaces(topic)
+      opts.fetch(:namespaces) do
+        paths = @sources[topic]['input']['camus']
+        namespaces_per_path = paths.map { |p| @hdfs.namespaces p }
+        namespaces_per_path.flatten.uniq
+      end
+    end
+
     def run
       case opts[:mode]
       when "verify"
         $log.info("validating events from HDFS")
         @segments = Dumbo::Segment.all(@db, @druid)
         @topics.each do |topic|
-          validate_events(topic)
+          namespaces(topic).each do |namespace|
+            validate_events(topic, namespace)
+          end
         end
         run_tasks
       when "compact"
         $log.info("Compacting segments")
         @segments = Dumbo::Segment.all(@db, @druid)
         @topics.each do |topic|
-          compact_segments(topic)
+          namespaces(topic).each do |namespace|
+            compact_segments(topic, namespace)
+          end
         end
         run_tasks
       when "unshard"
         $log.info("merging segment shards")
         @segments = Dumbo::Segment.all(@db, @druid)
         @topics.each do |topic|
-          unshard_segments(topic)
+          namespaces(topic).each do |namespace|
+            unshard_segments(topic, namespace)
+          end
         end
         run_tasks
       else
         $log.error("Unknown mode #{opts[:mode]}, try -h")
       end
-
     end
 
     def run_tasks
@@ -77,8 +90,8 @@ module Dumbo
       end
     end
 
-    def validate_events(source_name)
-      $log.info("validating events for", source: source_name)
+    def validate_events(source_name, namespace)
+      $log.info("validating events for", source: source_name, namespace: namespace)
 
       source = @sources[source_name]
 
@@ -94,11 +107,13 @@ module Dumbo
         end
       end
 
-      @hdfs.slots(source_name, @interval).each do |slot|
+      @hdfs.slots(source_name, namespace, @interval).each do |slot|
         next if slot.paths.length < 1 || slot.events < 1
 
+        dataSource = source['dataSource']
+        dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
         segments = @segments.select do |s|
-          s.source == source['dataSource'] &&
+          s.source == dataSource &&
           s.interval.first <= slot.time &&
           s.interval.last >= slot.time + 1.hour
         end
@@ -156,17 +171,18 @@ module Dumbo
         end
 
         next unless rebuild
-        @tasks << Task::IndexHadoop.new(source, [slot.time, slot.time+1.hour], slot.patterns)
+        @tasks << Task::IndexHadoop.new(source, namespace, [slot.time, slot.time+1.hour], slot.patterns)
       end
     end
 
-    def compact_segments(topic)
+    def compact_segments(topic, namespace)
       compact_interval = [@interval[0].utc, @interval[-1].floor(1.day).utc]
       compact_interval[0] -= 1.day if compact_interval[0] == compact_interval[-1]
-      $log.info("compacting segments for", topic: topic, interval: compact_interval)
+      $log.info("compacting segments for", topic: topic, namespace: namespace, interval: compact_interval)
 
       source = @sources[topic]
       dataSource = source['dataSource']
+      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
       compact_range = (compact_interval[0]...compact_interval[-1])
       expectedMetrics = Set.new(source['metrics'].keys).add("events")
       expectedDimensions = Set.new(source['dimensions'])
@@ -213,17 +229,17 @@ module Dumbo
         is_correct_schema = true if is_correct_schema == nil
 
         next if is_compact && is_correct_schema
-        $log.info("Compact", topic: topic, interval: segment_interval, compact: is_compact, correct_schema: is_correct_schema)
+        $log.info("Compact", topic: topic, namespace: namespace, interval: segment_interval, compact: is_compact, correct_schema: is_correct_schema)
         @tasks << Task::Index.new(source, segment_interval)
       end
-
     end
 
-    def unshard_segments(topic)
-      $log.info("merging segments for", topic: topic)
+    def unshard_segments(topic, namespace)
+      $log.info("merging segments for", topic: topic, namespace: namespace)
 
       source = @sources[topic]
       dataSource = source['dataSource']
+      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
 
       @segments.select do |segment|
         segment.source == dataSource &&
@@ -234,7 +250,7 @@ module Dumbo
       end.each do |interval, segments|
         if %w(linear hashed).include?(segments.first.shardSpec['type'])
           $log.info("merging segments", for: interval, segments: segments.length)
-          @tasks << Task::Index.new(source, segments.first.interval)
+          @tasks << Task::Index.new(source, namespace, segments.first.interval)
         end
       end
     end

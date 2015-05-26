@@ -21,28 +21,39 @@ module Dumbo
         @sources = sources
       end
 
-      def slots(topic, interval)
-        @slots["#{topic}_#{interval}"] ||= slots!(topic, interval)
+      def slots(topic, namespace, interval)
+        @slots["#{topic}_#{namespace}_#{interval}"] ||= slots!(topic, namespace, interval)
       end
 
-      def slots!(topic, interval)
+      def slots!(topic, namespace, interval)
         interval = interval.map { |t| t.floor(1.hour).utc }
         $log.info("scanning HDFS for", interval: interval)
         interval = (interval.first.to_i..interval.last.to_i)
         interval.step(1.hour).map do |time|
-          Slot.new(@sources, @hdfs, topic, Time.at(time).utc)
+          Slot.new(@sources, @hdfs, topic, namespace, Time.at(time).utc)
         end.reject do |slot|
           slot.events.to_i < 1
         end
       end
 
+      def namespaces(hdfs_root)
+        folders = @hdfs.list(hdfs_root).select do |entry|
+          entry['pathSuffix'] =~ /\A[0-9]*\Z/ || entry['pathSuffix'] == 'not_namespace_id'
+        end
+
+        namespaces_ids = folders.map { |f| f['pathSuffix'] }
+        $log.info('found HDFS', namespaces: namespaces_ids)
+        namespaces_ids
+      end
+
       class Slot
         attr_reader :topic, :time, :paths, :events
 
-        def initialize(sources, hdfs, topic, time)
+        def initialize(sources, hdfs, topic, namespace, time)
           @sources = sources
           @hdfs = hdfs
           @topic = topic
+          @namespace = namespace
           @time = time
           @paths = paths!
           @events = @paths.map do |path|
@@ -62,7 +73,7 @@ module Dumbo
         def paths!
           begin
             @sources[@topic]['input']['camus'].map do |hdfs_root|
-              path = "#{hdfs_root}/hourly/#{@time.strftime("%Y/%m/%d/%H")}"
+              path = "#{hdfs_root}/#{@namespace}/hourly/#{@time.strftime("%Y/%m/%d/%H")}"
               begin
                 @hdfs.list(path).map do |entry|
                   File.join(path, entry['pathSuffix']) if entry['pathSuffix'] =~ /\.gz$/

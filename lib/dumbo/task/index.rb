@@ -3,9 +3,12 @@ require 'dumbo/task/base'
 module Dumbo
   module Task
     class Index < Base
-      def initialize(source, interval)
+      def initialize(source, namespace, interval)
         @source = source
+        @namespace = namespace
         @interval = interval
+        @datasource = @source['dataSource']
+        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_id'
       end
 
       def as_json(options = {})
@@ -14,7 +17,7 @@ module Dumbo
           type: 'index',
           spec: {
             dataSchema: {
-              dataSource: @source['dataSource'],
+              dataSource: @datasource,
               metricsSpec: (@source['metrics'] || {}).map do |name, aggregator|
                 { type: aggregator, name: name, fieldName: name }
               # WARNING: do NOT use count for events, will count in segment vs count in raw input
@@ -29,7 +32,7 @@ module Dumbo
               type: 'index',
               firehose: {
                 type: "ingestSegment",
-                dataSource: @source['dataSource'],
+                dataSource: @datasource,
                 interval: interval,
                 dimensions: @source['dimensions'],
               },
