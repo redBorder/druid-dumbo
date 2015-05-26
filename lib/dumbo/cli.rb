@@ -230,7 +230,7 @@ module Dumbo
 
         next if is_compact && is_correct_schema
         $log.info("Compact", topic: topic, namespace: namespace, interval: segment_interval, compact: is_compact, correct_schema: is_correct_schema)
-        @tasks << Task::Index.new(source, segment_interval)
+        @tasks << Task::Index.new(source, namespace, segment_interval)
       end
     end
 
