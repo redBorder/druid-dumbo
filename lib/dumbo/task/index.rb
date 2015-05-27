@@ -18,8 +18,8 @@ module Dumbo
           spec: {
             dataSchema: {
               dataSource: @datasource,
-              metricsSpec: (@source['metrics'] || {}).map do |name, aggregator|
-                { type: aggregator, name: name, fieldName: name }
+              metricsSpec: (@source['metrics'] || {}).map do |x|
+                { type: x['type'], name: x['name'], fieldName: x['fieldName'] }
               # WARNING: do NOT use count for events, will count in segment vs count in raw input
               end + [{ type: "doubleSum", name: "events", fieldName: "events" }],
               granularitySpec: {

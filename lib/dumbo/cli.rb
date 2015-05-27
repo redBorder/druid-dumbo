@@ -96,7 +96,7 @@ module Dumbo
 
       source = @sources[source_name]
 
-      expectedMetrics = Set.new(source['metrics'].keys).add("events")
+      expectedMetrics = Set.new(source['metrics']).add("events")
       expectedDimensions = Set.new(source['dimensions'])
 
       validation_interval = @interval
@@ -154,7 +154,8 @@ module Dumbo
             when 'events'
               type = 'FLOAT'
             else
-              case source['metrics'][name]
+              element = source['metrics'].select { |s| s['name'] == name }
+              case element.first['type']
               when 'doubleSum'
                 type = 'FLOAT'
               when 'longSum'
@@ -185,7 +186,7 @@ module Dumbo
       dataSource = source['dataSource']
       dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
       compact_range = (compact_interval[0]...compact_interval[-1])
-      expectedMetrics = Set.new(source['metrics'].keys).add("events")
+      expectedMetrics = Set.new(source['metrics']).add("events")
       expectedDimensions = Set.new(source['dimensions'])
 
       segments = @segments.select do |segment|

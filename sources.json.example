@@ -16,9 +16,9 @@
       "indexGranularity": "minute",
       "numShards": 1
     },
-    "metrics": {
-      "value": "doubleSum"
-    },
+    "metrics": [
+      {"aggregator":"doubleSum", "name":"output_value", "fieldName", "input_value"}
+    ],
     "dimensions": [
       "host",
       "metric",

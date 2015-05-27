@@ -32,8 +32,8 @@ module Dumbo
                   }
                 }
               },
-              metricsSpec: (@source['metrics'] || {}).map do |name, aggregator|
-                { type: aggregator, name: name, fieldName: name }
+              metricsSpec: (@source['metrics'] || {}).map do |x|
+                { type: x['type'], name: x['name'], fieldName: x['fieldName'] }
               end + [{ type: "count", name: "events" }],
               granularitySpec: {
                 segmentGranularity: @source['output']['segmentGranularity'] || "hour",
