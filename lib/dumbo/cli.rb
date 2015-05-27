@@ -19,7 +19,8 @@ module Dumbo
         source['dataSource'] = source_name.split("/")[-1]
       end
       @topics = opts[:topics] || @sources.keys
-      @hdfs = Firehose::HDFS.new(opts[:namenodes], @sources)
+      @namenodes = opts[:namenodes]
+      @hdfs = Firehose::HDFS.new(@namenodes, @sources)
       @interval = [((Time.now.utc-(opts[:window] + opts[:offset]).hours).floor(1.day)).utc, (Time.now.utc-opts[:offset].hour).utc]
       @tasks = []
       @limit = opts[:limit]
@@ -171,7 +172,7 @@ module Dumbo
         end
 
         next unless rebuild
-        @tasks << Task::IndexHadoop.new(source, namespace, [slot.time, slot.time+1.hour], slot.patterns)
+        @tasks << Task::IndexHadoop.new(source, @namenodes, namespace, [slot.time, slot.time+1.hour], slot.patterns)
       end
     end
 

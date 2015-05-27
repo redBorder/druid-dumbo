@@ -3,9 +3,10 @@ require 'dumbo/task/base'
 module Dumbo
   module Task
     class IndexHadoop < Base
-      def initialize(source, namespace, interval, paths)
+      def initialize(source, namenodes, namespace, interval, paths)
         @source = source
         @namespace = namespace
+        @namenodes = namenodes
         @interval = interval
         @paths = paths
         @datasource = @source['dataSource']
