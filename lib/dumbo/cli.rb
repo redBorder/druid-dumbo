@@ -112,7 +112,7 @@ module Dumbo
         next if slot.paths.length < 1 || slot.events < 1
 
         dataSource = source['dataSource']
-        dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
+        dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
         segments = @segments.select do |s|
           s.source == dataSource &&
           s.interval.first <= slot.time &&
@@ -184,7 +184,7 @@ module Dumbo
 
       source = @sources[topic]
       dataSource = source['dataSource']
-      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
+      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
       compact_range = (compact_interval[0]...compact_interval[-1])
       expectedMetrics = Set.new(source['metrics']).add("events")
       expectedDimensions = Set.new(source['dimensions'])
@@ -251,7 +251,7 @@ module Dumbo
 
       source = @sources[topic]
       dataSource = source['dataSource']
-      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_id'
+      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
 
       @segments.select do |segment|
         segment.source == dataSource &&

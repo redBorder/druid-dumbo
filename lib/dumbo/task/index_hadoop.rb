@@ -10,7 +10,7 @@ module Dumbo
         @interval = interval
         @paths = paths
         @datasource = @source['dataSource']
-        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_id'
+        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_uuid'
       end
 
       def as_json(options = {})
