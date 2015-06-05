@@ -5,6 +5,7 @@ ROOT = File.expand_path('../..', __FILE__)
 require 'bundler/setup'
 require 'liquid/boot'
 require 'dumbo/cli'
+require 'druid'
 
 CLI.for(Dumbo::CLI) do
   option :window,
