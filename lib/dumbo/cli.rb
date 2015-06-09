@@ -24,6 +24,7 @@ module Dumbo
       @interval = [((Time.now.utc-(opts[:window] + opts[:offset]).hours).floor(1.day)).utc, (Time.now.utc-opts[:offset].hour).utc]
       @tasks = []
       @limit = opts[:limit]
+      @hadoop_version = opts[:hadoop_version]
     end
 
     def namespaces(topic)
@@ -46,7 +47,7 @@ module Dumbo
         end
         run_tasks
       when "compact"
-        $log.info("Compacting segments")
+        $log.info("compacting segments")
         @segments = Dumbo::Segment.all(@db, @druid)
         @topics.each do |topic|
           namespaces(topic).each do |namespace|
@@ -173,28 +174,38 @@ module Dumbo
         end
 
         next unless rebuild
-        @tasks << Task::IndexHadoop.new(source, @namenodes, namespace, [slot.time, slot.time+1.hour], slot.patterns)
+        @tasks << Task::IndexHadoop.new(source, @namenodes, namespace, [slot.time, slot.time+1.hour], slot.patterns, @hadoop_version)
       end
     end
 
-    def compact_segments(topic, namespace)
-      compact_interval = [@interval[0].utc, @interval[-1].floor(1.day).utc]
-      compact_interval[0] -= 1.day if compact_interval[0] == compact_interval[-1]
-      $log.info("compacting segments for", topic: topic, namespace: namespace, interval: compact_interval)
-
-      source = @sources[topic]
+    def get_overlapping_segments_and_interval(source, check_interval, available_segments = @segments)
       dataSource = source['dataSource']
-      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
-      compact_range = (compact_interval[0]...compact_interval[-1])
-      expectedMetrics = Set.new(source['metrics']).add("events")
-      expectedDimensions = Set.new(source['dimensions'])
 
-      segments = @segments.select do |segment|
-        segment.source == dataSource &&
-        (segment.interval[0]...segment.interval[-1]).overlaps?(compact_range)
+      oldest = check_interval.first
+      newest = check_interval.last
+
+      check_range = (oldest...newest)
+      $log.info("checking overlapping intervals for", dataSource: dataSource, interval: check_range)
+
+      segments = available_segments.select do |segment|
+        if segment.source == dataSource && (segment.interval[0]...segment.interval[-1]).overlaps?(check_range)
+          oldest = [oldest, segment.interval[0]].min
+          newest = [newest, segment.interval[-1]].max
+          true
+        else
+          false
+        end
       end
 
-      segment_size = case (source['output']['segmentGranularity'] || "day").downcase
+      return {
+        dataSource: dataSource,
+        interval: [oldest, newest],
+        segments: segments
+      }
+    end
+
+    def get_segment_granularity(source)
+      case (source['output']['segmentGranularity'] || 'hour').downcase
       when 'fifteen_minute'
         15.minutes
       when 'thirty_minute'
@@ -206,43 +217,45 @@ module Dumbo
       else
         raise "Unsupported segmentGranularity #{source['output']['segmentGranularity']}"
       end
+    end
 
-      compact_interval[0].to_i.step(compact_interval[-1].to_i - 1, segment_size) do |start_time|
-        segment_range = (Time.at(start_time).utc...Time.at(start_time + segment_size).utc)
-        segment_interval = [segment_range.first, segment_range.last]
+    def compact_segments(topic)
+      source = @sources[topic]
+      compact_interval = [@interval[0].utc, @interval[-1].floor(1.day).utc]
+      compact_interval[0] -= 1.day if compact_interval[0] == compact_interval[-1]
+      $log.info("compacting scan", topic: topic, interval: compact_interval)
+      compacting = get_overlapping_segments_and_interval(source, compact_interval)
+      segment_size = get_segment_granularity(source)
 
-        is_correct_schema = nil
+      expectedMetrics = Set.new(source['metrics'].keys).add("events")
+      expectedDimensions = Set.new(source['dimensions'])
 
-        is_compact = segments.all? do |segment|
-          if (segment.interval[0]...segment.interval[-1]).overlaps?(segment_range)
-            if is_correct_schema == nil
-              currentMetrics = Set.new(segment.metrics)
-              currentDimensions = Set.new(segment.dimensions)
+      compacting[:interval][0].to_i.step(compacting[:interval][-1].to_i - 1, segment_size) do |start_time|
+        segment_interval = [Time.at(start_time).utc, Time.at(start_time + segment_size).utc]
+        segment_input = get_overlapping_segments_and_interval(source, segment_interval, compacting[:segments])
 
-              if currentMetrics < expectedMetrics
-                $log.info("requested metrics not in source segment, ignoring", metrics: (expectedMetrics - currentMetrics).to_a, for: segment_interval)
-              elsif currentMetrics > expectedMetrics
-                $log.info("requested to remove", metrics: (currentMetrics - expectedMetrics).to_a, for: segment_interval)
-                is_correct_schema = false
-              elsif currentDimensions < expectedDimensions
-                $log.info("requested dimensions not in source segment, ignoring", for: segment_interval, missing: (expectedDimensions - currentDimensions).to_a)
-              elsif currentDimensions > expectedDimensions
-                $log.info("requested to remove", dimensions: (currentDimensions - expectedDimensions).to_a, for: segment_interval)
-                is_correct_schema = false
-              end
-            end
-            segment.interval.first == segment_range.first &&
-            segment.interval.last == segment_range.last
-          else
-            true
+        must_compact = segment_input[:segments].any? do |input_segment|
+          should_compact = false
+          currentMetrics = Set.new(input_segment.metrics)
+          currentDimensions = Set.new(input_segment.dimensions)
+
+          if currentMetrics < expectedMetrics
+            $log.info("requested metrics not in source segment, ignoring", metrics: (expectedMetrics - currentMetrics).to_a, for: segment_interval)
+          elsif currentMetrics > expectedMetrics
+            $log.info("requested to remove", metrics: (currentMetrics - expectedMetrics).to_a, for: segment_interval)
+            should_compact = true
           end
-        end
-        # ensure we don't try to compact non-existing data
-        is_correct_schema = true if is_correct_schema == nil
 
-        next if is_compact && is_correct_schema
-        $log.info("Compact", topic: topic, namespace: namespace, interval: segment_interval, compact: is_compact, correct_schema: is_correct_schema)
-        @tasks << Task::Index.new(source, namespace, segment_interval)
+          if currentDimensions < expectedDimensions
+            $log.info("requested dimensions not in source segment, ignoring", for: segment_interval, missing: (expectedDimensions - currentDimensions).to_a)
+          elsif currentDimensions > expectedDimensions
+            $log.info("requested to remove", dimensions: (currentDimensions - expectedDimensions).to_a, for: segment_interval)
+            should_compact = true
+          end
+
+          should_compact
+        end
+        @tasks << Task::Index.new(source, namespace, segment_interval) if must_compact
       end
     end
 

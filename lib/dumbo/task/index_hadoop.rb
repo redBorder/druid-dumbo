@@ -3,7 +3,7 @@ require 'dumbo/task/base'
 module Dumbo
   module Task
     class IndexHadoop < Base
-      def initialize(source, namenodes, namespace, interval, paths)
+      def initialize(source, namenodes, namespace, interval, paths, hadoop_version)
         @source = source
         @namespace = namespace
         @namenodes = namenodes
@@ -11,11 +11,13 @@ module Dumbo
         @paths = paths
         @datasource = @source['dataSource']
         @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_uuid'
+        @hadoop_version = hadoop_version
       end
 
       def as_json(options = {})
         config = {
           type: 'index_hadoop',
+          hadoopDependencyCoordinates: ["org.apache.hadoop:hadoop-client:#{@hadoop_version}"],
           spec: {
             dataSchema: {
               dataSource: @datasource,
