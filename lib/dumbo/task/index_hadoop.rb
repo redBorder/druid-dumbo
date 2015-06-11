@@ -3,12 +3,12 @@ require 'dumbo/task/base'
 module Dumbo
   module Task
     class IndexHadoop < Base
-      def initialize(source, namenodes, namespace, interval, paths, hadoop_version)
+      def initialize(source, namenodes, namespace, interval, path, hadoop_version)
         @source = source
         @namespace = namespace
         @namenodes = namenodes
         @interval = interval
-        @paths = paths
+        @path = path
         @datasource = @source['dataSource']
         @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_uuid'
         @hadoop_version = hadoop_version
@@ -47,7 +47,7 @@ module Dumbo
               type: 'hadoop',
               inputSpec: {
                 type: 'static',
-                paths: @paths.map { |path| "hdfs://#{@namenodes.first}:8020#{path}" }.join(','),
+                paths: "hdfs://#{@namenodes.first}:8020#{@path}",
               },
             },
             tuningConfig: {
