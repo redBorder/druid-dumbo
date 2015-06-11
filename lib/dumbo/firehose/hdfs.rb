@@ -49,7 +49,7 @@ module Dumbo
 
       def namespaces(hdfs_root)
         folders = @hdfs.first.list(hdfs_root).select do |entry|
-          entry['pathSuffix'] =~ /\A[0-9]*\Z/ || entry['pathSuffix'] == 'not_namespace_uuid'
+          entry['pathSuffix'] =~ /\A[0-9]*\Z/ || entry['pathSuffix'] == 'default'
         end
 
         namespaces_ids = folders.map { |f| f['pathSuffix'] }

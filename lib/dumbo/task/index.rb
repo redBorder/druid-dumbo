@@ -8,7 +8,7 @@ module Dumbo
         @namespace = namespace
         @interval = interval
         @datasource = @source['dataSource']
-        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_uuid'
+        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'default'
       end
 
       def as_json(options = {})

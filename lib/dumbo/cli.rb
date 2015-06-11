@@ -121,7 +121,7 @@ module Dumbo
         next if slot.paths.length < 1 || slot.events < 1
 
         dataSource = source['dataSource']
-        dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
+        dataSource = "#{dataSource}_#{namespace}" if namespace != 'default'
         segments = @segments.select do |s|
           s.source == dataSource &&
           s.interval.first <= slot.time &&
@@ -288,7 +288,7 @@ module Dumbo
 
       source = @sources[topic]
       dataSource = source['dataSource']
-      dataSource = "#{dataSource}_#{namespace}" if namespace != 'not_namespace_uuid'
+      dataSource = "#{dataSource}_#{namespace}" if namespace != 'default'
 
       @segments.select do |segment|
         segment.source == dataSource &&

@@ -10,7 +10,7 @@ module Dumbo
         @interval = interval
         @path = path
         @datasource = @source['dataSource']
-        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'not_namespace_uuid'
+        @datasource = "#{@source['dataSource']}_#{@namespace}" if @namespace != 'default'
         @hadoop_version = hadoop_version
       end
 
