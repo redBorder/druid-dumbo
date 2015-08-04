@@ -161,7 +161,7 @@ module Dumbo
             when '__time'
               type = 'LONG'
             when 'events'
-              type = 'FLOAT'
+              type = 'LONG'
             else
               element = source['metrics'].select { |s| s['name'] == name }
               case element.first['type']
