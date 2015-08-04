@@ -67,7 +67,7 @@ module Dumbo
         # so far only in verify, this return value will cause a reimport
         {
           'columns' => {
-            '__time': {
+            '__time' => {
               'type' => false
             }
           }
