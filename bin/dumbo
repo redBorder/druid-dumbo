@@ -32,7 +32,8 @@ CLI.for(Dumbo::CLI) do
     :short => '-a LIST',
     :long => '--namespaces LIST',
     :description => 'Namespaces to process (comma seperated)',
-    :proc => Proc.new { |x| x.split(',') }
+    :proc => Proc.new { |x| x.split(',') },
+    :required => true
 
   option :namenodes,
     :short => '-n LIST',

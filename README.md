@@ -22,6 +22,7 @@ Usage: bin/dumbo (options)
     -o, --overlord HOST[:PORT]       overlord hostname and port, defaults to "localhost:8090"
     -s, --sources PATH               path to sources config (required)
     -t, --topics LIST                Topics to process (comma seperated), defaults to all in sources.json
+    -a, --namespaces LIST            Namespaces to process (comma separated, required)
     -w, --window HOURS               scan window in hours, defaults to 24 hours
     -z, --zookeeper URI              zookeeper URI, defaults to "localhost:2181/druid"
         --zookeeper-path PATH        druid's discovery path within zookeeper, defaults to "/discovery"
