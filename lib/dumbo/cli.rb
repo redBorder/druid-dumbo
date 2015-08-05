@@ -18,7 +18,7 @@ module Dumbo
         source['service'] = source_name.split("/")[0]
         source['dataSource'] = source_name.split("/")[-1]
       end
-      @topics = opts[:topics] || @sources.keys
+      @topics = opts[:topics] || @sources.map { |k, v| v['dataSource'] }
       @namenodes = opts[:namenodes]
       @hdfs = Firehose::HDFS.new(@namenodes, @sources)
       @interval = [((Time.now.utc-(opts[:window] + opts[:offset]).hours).floor(1.day)).utc, (Time.now.utc-opts[:offset].hour).utc]
