@@ -148,7 +148,7 @@ module Dumbo
 
         def paths!
           begin
-            @sources[@topic]['input']['camus'].map do |hdfs_root|
+            @sources["broker/#{@topic}"]['input']['camus'].map do |hdfs_root|
               path = "#{hdfs_root}/#{@namespace}/hourly/#{@time.strftime("%Y/%m/%d/%H")}"
               begin
                 @hdfs.list(path).map do |entry|

@@ -103,7 +103,7 @@ module Dumbo
     def validate_events(source_name, namespace)
       $log.info("validating events for", source: source_name, namespace: namespace)
 
-      source = @sources[source_name]
+      source = @sources["broker/#{source_name}"]
 
       expectedMetrics = Set.new(source['metrics']).add("events")
       expectedDimensions = Set.new(source['dimensions'])
